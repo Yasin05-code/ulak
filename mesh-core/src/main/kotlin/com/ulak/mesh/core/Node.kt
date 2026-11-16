@@ -6,6 +6,8 @@ import com.ulak.mesh.model.MessageType
 import java.time.Clock
 import java.time.Duration
 import java.time.Instant
+import com.ulak.mesh.repository.InMemoryMessageRepository
+import com.ulak.mesh.repository.MessageRepository
 
 enum class MessageReceiveResult {
     STORED,
@@ -17,10 +19,9 @@ class Node(
     val id: String,
     private val clock: Clock = Clock.systemUTC(),
     private val messageFactory: MessageFactory = MessageFactory(clock),
-    private val eventLog: MessageEventLog = MessageEventLog(clock)
+    private val eventLog: MessageEventLog = MessageEventLog(clock),
+    private val messageRepository: MessageRepository = InMemoryMessageRepository()
 ) {
-
-    private val storedMessages = mutableMapOf<String, Message>()
 
     init {
         require(id.isNotBlank()) {
@@ -43,7 +44,7 @@ class Node(
             ttl = ttl
         )
 
-        storedMessages[message.id] = message
+        messageRepository.save(message)
 
         eventLog.record(
             messageId = message.id,
@@ -62,11 +63,11 @@ class Node(
             return MessageReceiveResult.EXPIRED
         }
 
-        if (storedMessages.containsKey(message.id)) {
+        if (messageRepository.exists(message.id)) {
             return MessageReceiveResult.DUPLICATE
         }
 
-        storedMessages[message.id] = message
+        messageRepository.save(message)
 
         eventLog.record(
             messageId = message.id,
@@ -80,16 +81,16 @@ class Node(
     fun messagesToRelay(): List<Message> {
         val now = Instant.now(clock)
 
-        return storedMessages.values.filter {
+        return messageRepository.getAll().filter {
             now.isBefore(it.expiresAt)
         }
     }
 
     fun hasMessage(messageId: String): Boolean {
-        return storedMessages.containsKey(messageId)
+        return messageRepository.exists(messageId)
     }
 
     fun storedMessageCount(): Int {
-        return storedMessages.size
+        return messageRepository.count()
     }
 }
