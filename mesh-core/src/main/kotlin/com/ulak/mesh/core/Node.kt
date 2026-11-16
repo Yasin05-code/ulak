@@ -1,7 +1,7 @@
-
 package com.ulak.mesh.core
 
 import com.ulak.mesh.model.Message
+import com.ulak.mesh.model.MessageEventType
 import com.ulak.mesh.model.MessageType
 import java.time.Clock
 import java.time.Duration
@@ -16,7 +16,8 @@ enum class MessageReceiveResult {
 class Node(
     val id: String,
     private val clock: Clock = Clock.systemUTC(),
-    private val messageFactory: MessageFactory = MessageFactory(clock)
+    private val messageFactory: MessageFactory = MessageFactory(clock),
+    private val eventLog: MessageEventLog = MessageEventLog(clock)
 ) {
 
     private val storedMessages = mutableMapOf<String, Message>()
@@ -44,6 +45,12 @@ class Node(
 
         storedMessages[message.id] = message
 
+        eventLog.record(
+            messageId = message.id,
+            type = MessageEventType.CREATED,
+            deviceId = id
+        )
+
         return message
     }
 
@@ -60,6 +67,12 @@ class Node(
         }
 
         storedMessages[message.id] = message
+
+        eventLog.record(
+            messageId = message.id,
+            type = MessageEventType.RELAY_RECEIVED,
+            deviceId = id
+        )
 
         return MessageReceiveResult.STORED
     }

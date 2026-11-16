@@ -3,12 +3,30 @@ package com.ulak.mesh.simulation
 import com.ulak.mesh.core.Node
 import com.ulak.mesh.core.RelayManager
 import com.ulak.mesh.model.MessageType
+import java.time.Clock
+import java.time.Duration
+import java.time.Instant
+import java.time.ZoneOffset
+import com.ulak.mesh.core.MessageEventLog
 
 fun main() {
 
-    val nodeA = Node("PHONE_A")
-    val nodeB = Node("PHONE_B")
-    val nodeC = Node("PHONE_C")
+    val eventLog = MessageEventLog()
+
+    val nodeA = Node(
+        id = "PHONE_A",
+        eventLog = eventLog
+    )
+
+    val nodeB = Node(
+        id = "PHONE_B",
+        eventLog = eventLog
+    )
+
+    val nodeC = Node(
+        id = "PHONE_C",
+        eventLog = eventLog
+    )
 
     val relayManager = RelayManager()
 
@@ -56,4 +74,69 @@ fun main() {
     println()
     println("Does PHONE_C have the original message?")
     println(nodeC.hasMessage(message.id))
+
+    println()
+    println("----- MESSAGE EVENT HISTORY -----")
+
+    eventLog.eventsFor(message.id).forEach { event ->
+        println(
+            "${event.type} | ${event.deviceId} | ${event.occurredAt}"
+        )
+    }
+
+    println()
+    println("----- EXPIRY TEST -----")
+
+    val baseTime = Instant.parse("2026-11-16T12:00:00Z")
+
+    val senderClock = Clock.fixed(
+        baseTime,
+        ZoneOffset.UTC
+    )
+
+    val validReceiverClock = Clock.fixed(
+        baseTime.plus(Duration.ofMinutes(30)),
+        ZoneOffset.UTC
+    )
+
+    val expiredReceiverClock = Clock.fixed(
+        baseTime.plus(Duration.ofHours(2)),
+        ZoneOffset.UTC
+    )
+
+    val expirySender = Node(
+        id = "EXPIRY_SENDER",
+        clock = senderClock
+    )
+
+    val validReceiver = Node(
+        id = "VALID_RECEIVER",
+        clock = validReceiverClock
+    )
+
+    val expiredReceiver = Node(
+        id = "EXPIRED_RECEIVER",
+        clock = expiredReceiverClock
+    )
+
+    val expiringMessage = expirySender.createMessage(
+        type = MessageType.SOS,
+        payload = "Need help",
+        ttl = Duration.ofHours(1)
+    )
+
+    println("Created at: ${expiringMessage.createdAt}")
+    println("Expires at: ${expiringMessage.expiresAt}")
+
+    val validResult = validReceiver.receive(expiringMessage)
+
+    println()
+    println("Received after 30 minutes:")
+    println("Result: $validResult")
+
+    val expiredResult = expiredReceiver.receive(expiringMessage)
+
+    println()
+    println("Received after 2 hours:")
+    println("Result: $expiredResult")
 }
