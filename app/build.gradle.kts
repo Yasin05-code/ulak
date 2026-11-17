@@ -25,6 +25,11 @@ android {
     buildFeatures {
         compose = true
     }
+
+    testOptions {
+        // Robolectric tests need the app's real resources (strings, theme).
+        unitTests.isIncludeAndroidResources = true
+    }
 }
 
 dependencies {
@@ -42,4 +47,11 @@ dependencies {
     implementation("com.google.android.gms:play-services-nearby:19.5.1")
 
     implementation(project(":mesh-core"))
+
+    // Tests only: run Android code and Compose UI on the computer, no phone needed.
+    testImplementation("junit:junit:4.13.2")
+    testImplementation("org.robolectric:robolectric:4.18")
+    testImplementation(composeBom)
+    testImplementation("androidx.compose.ui:ui-test-junit4")
+    debugImplementation("androidx.compose.ui:ui-test-manifest")
 }
