@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Ulak</string>
+
+    <string name="status_title">Communication</string>
+    <string name="status_off">Off</string>
+    <string name="status_off_detail">Not relaying messages</string>
+
+    <string name="button_safe">I\'m Safe</string>
+    <string name="button_sos">SOS</string>
+    <string name="button_start_communication">Start Communication</string>
+
+    <string name="last_message_title">Last message</string>
+    <string name="last_message_empty">No messages yet</string>
+</resources>
