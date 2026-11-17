@@ -3,8 +3,17 @@ package com.ulak.app.ui
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import com.ulak.app.UlakApplication
+import com.ulak.app.permission.PermissionHelper
 import com.ulak.mesh.model.Message
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+
+/** A message shown on screen after the permission dialog closes. */
+enum class PermissionNotice {
+    REQUIRED_DENIED,
+    NOTIFICATIONS_DENIED
+}
 
 class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -12,7 +21,29 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     val lastMessage: StateFlow<Message?> = messageCenter.lastMessage
 
+    private val _permissionNotice = MutableStateFlow<PermissionNotice?>(null)
+    val permissionNotice: StateFlow<PermissionNotice?> = _permissionNotice.asStateFlow()
+
     fun onSafeClick() = messageCenter.sendSafe()
 
     fun onSosClick() = messageCenter.sendSos()
+
+    /** Called after the system permission dialog closes (or right away if all were granted). */
+    fun onPermissionResult() {
+        val app = getApplication<Application>()
+
+        if (PermissionHelper.missingRequired(app).isNotEmpty()) {
+            _permissionNotice.value = PermissionNotice.REQUIRED_DENIED
+            return
+        }
+
+        _permissionNotice.value =
+            if (PermissionHelper.notificationsAllowed(app)) null else PermissionNotice.NOTIFICATIONS_DENIED
+
+        startCommunication()
+    }
+
+    private fun startCommunication() {
+        // Phase 4: start the foreground service here.
+    }
 }

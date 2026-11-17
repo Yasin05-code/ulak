@@ -1,5 +1,11 @@
 package com.ulak.app.ui
 
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -11,15 +17,18 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -27,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ulak.app.R
+import com.ulak.app.permission.PermissionHelper
 import com.ulak.app.ui.theme.SafeGreen
 import com.ulak.app.ui.theme.SosRed
 import com.ulak.app.ui.theme.UlakTheme
@@ -38,20 +48,41 @@ import java.time.format.DateTimeFormatter
 @Composable
 fun HomeScreen(viewModel: HomeViewModel = viewModel()) {
     val lastMessage by viewModel.lastMessage.collectAsState()
+    val permissionNotice by viewModel.permissionNotice.collectAsState()
+    val context = LocalContext.current
+
+    // Opens the system permission dialog; Android skips it for permissions already granted.
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { viewModel.onPermissionResult() }
 
     HomeContent(
         lastMessage = lastMessage,
+        permissionNotice = permissionNotice,
         onSafeClick = viewModel::onSafeClick,
-        onSosClick = viewModel::onSosClick
+        onSosClick = viewModel::onSosClick,
+        onCommunicationClick = {
+            permissionLauncher.launch(PermissionHelper.permissionsToRequest())
+        },
+        onOpenSettingsClick = { openAppSettings(context) }
     )
+}
+
+private fun openAppSettings(context: Context) {
+    val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+        .setData(Uri.fromParts("package", context.packageName, null))
+    context.startActivity(intent)
 }
 
 /** Pure layout: gets data and callbacks as parameters, so it is easy to preview. */
 @Composable
 private fun HomeContent(
     lastMessage: Message?,
+    permissionNotice: PermissionNotice?,
     onSafeClick: () -> Unit,
-    onSosClick: () -> Unit
+    onSosClick: () -> Unit,
+    onCommunicationClick: () -> Unit,
+    onOpenSettingsClick: () -> Unit
 ) {
     Scaffold { innerPadding ->
         Column(
@@ -62,6 +93,10 @@ private fun HomeContent(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             StatusCard()
+
+            if (permissionNotice != null) {
+                PermissionNoticeCard(permissionNotice, onOpenSettingsClick)
+            }
 
             // The two emergency buttons share all free space, so they stay large.
             ActionButton(
@@ -76,7 +111,7 @@ private fun HomeContent(
             )
 
             OutlinedButton(
-                onClick = { /* Phase 4 */ },
+                onClick = onCommunicationClick,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(64.dp)
@@ -106,6 +141,28 @@ private fun StatusCard() {
                 text = stringResource(R.string.status_off_detail),
                 style = MaterialTheme.typography.bodyMedium
             )
+        }
+    }
+}
+
+@Composable
+private fun PermissionNoticeCard(notice: PermissionNotice, onOpenSettingsClick: () -> Unit) {
+    val text = when (notice) {
+        PermissionNotice.REQUIRED_DENIED -> stringResource(R.string.permission_required_denied)
+        PermissionNotice.NOTIFICATIONS_DENIED -> stringResource(R.string.permission_notifications_denied)
+    }
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.errorContainer,
+            contentColor = MaterialTheme.colorScheme.onErrorContainer
+        )
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(text = text, style = MaterialTheme.typography.bodyMedium)
+            TextButton(onClick = onOpenSettingsClick) {
+                Text(stringResource(R.string.permission_open_settings))
+            }
         }
     }
 }
@@ -167,6 +224,13 @@ private fun LastMessageCard(message: Message?) {
 @Composable
 private fun HomeScreenPreview() {
     UlakTheme {
-        HomeContent(lastMessage = null, onSafeClick = {}, onSosClick = {})
+        HomeContent(
+            lastMessage = null,
+            permissionNotice = null,
+            onSafeClick = {},
+            onSosClick = {},
+            onCommunicationClick = {},
+            onOpenSettingsClick = {}
+        )
     }
 }
