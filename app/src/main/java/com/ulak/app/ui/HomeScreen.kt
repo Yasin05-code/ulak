@@ -16,6 +16,8 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
@@ -23,13 +25,34 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ulak.app.R
 import com.ulak.app.ui.theme.SafeGreen
 import com.ulak.app.ui.theme.SosRed
 import com.ulak.app.ui.theme.UlakTheme
+import com.ulak.mesh.model.Message
+import com.ulak.mesh.model.MessageType
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 @Composable
-fun HomeScreen() {
+fun HomeScreen(viewModel: HomeViewModel = viewModel()) {
+    val lastMessage by viewModel.lastMessage.collectAsState()
+
+    HomeContent(
+        lastMessage = lastMessage,
+        onSafeClick = viewModel::onSafeClick,
+        onSosClick = viewModel::onSosClick
+    )
+}
+
+/** Pure layout: gets data and callbacks as parameters, so it is easy to preview. */
+@Composable
+private fun HomeContent(
+    lastMessage: Message?,
+    onSafeClick: () -> Unit,
+    onSosClick: () -> Unit
+) {
     Scaffold { innerPadding ->
         Column(
             modifier = Modifier
@@ -44,12 +67,12 @@ fun HomeScreen() {
             ActionButton(
                 text = stringResource(R.string.button_safe),
                 color = SafeGreen,
-                onClick = { /* Phase 2 */ }
+                onClick = onSafeClick
             )
             ActionButton(
                 text = stringResource(R.string.button_sos),
                 color = SosRed,
-                onClick = { /* Phase 2 */ }
+                onClick = onSosClick
             )
 
             OutlinedButton(
@@ -61,7 +84,7 @@ fun HomeScreen() {
                 Text(stringResource(R.string.button_start_communication), fontSize = 18.sp)
             }
 
-            LastMessageCard()
+            LastMessageCard(lastMessage)
         }
     }
 }
@@ -101,18 +124,41 @@ private fun ColumnScope.ActionButton(text: String, color: Color, onClick: () -> 
     }
 }
 
+private val timeFormatter: DateTimeFormatter =
+    DateTimeFormatter.ofPattern("HH:mm:ss").withZone(ZoneId.systemDefault())
+
 @Composable
-private fun LastMessageCard() {
+private fun LastMessageCard(message: Message?) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
                 text = stringResource(R.string.last_message_title),
                 style = MaterialTheme.typography.labelLarge
             )
-            Text(
-                text = stringResource(R.string.last_message_empty),
-                style = MaterialTheme.typography.bodyLarge
-            )
+            if (message == null) {
+                Text(
+                    text = stringResource(R.string.last_message_empty),
+                    style = MaterialTheme.typography.bodyLarge
+                )
+            } else {
+                val typeLabel = when (message.type) {
+                    MessageType.I_AM_SAFE -> stringResource(R.string.button_safe)
+                    MessageType.SOS -> stringResource(R.string.button_sos)
+                }
+                Text(
+                    text = typeLabel,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = stringResource(
+                        R.string.last_message_detail,
+                        timeFormatter.format(message.createdAt),
+                        message.id.take(8)
+                    ),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
         }
     }
 }
@@ -121,6 +167,6 @@ private fun LastMessageCard() {
 @Composable
 private fun HomeScreenPreview() {
     UlakTheme {
-        HomeScreen()
+        HomeContent(lastMessage = null, onSafeClick = {}, onSosClick = {})
     }
 }

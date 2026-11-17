@@ -12,4 +12,5 @@
 
     <string name="last_message_title">Last message</string>
     <string name="last_message_empty">No messages yet</string>
+    <string name="last_message_detail">Time: %1$s · ID: %2$s</string>
 </resources>
