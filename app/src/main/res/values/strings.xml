@@ -1,26 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Ulak</string>
+    <string name="title">ULAK</string>
 
-    <string name="status_title">Communication</string>
-    <string name="status_off">Off</string>
-    <string name="status_off_detail">Not relaying messages</string>
-    <string name="status_on">On</string>
-    <string name="status_on_detail">Relaying messages in the background</string>
+    <string name="mode_active">Communication Mode: Active</string>
+    <string name="mode_off">Communication Mode: Off</string>
+    <string name="nearby_phones">Connected phones: %1$d</string>
 
-    <string name="button_safe">I\'m Safe</string>
-    <string name="button_sos">SOS</string>
     <string name="button_start_communication">Start Communication</string>
     <string name="button_stop_communication">Stop Communication</string>
-
-    <string name="notification_channel_name">Communication Mode</string>
-    <string name="notification_relaying">Ulak is relaying messages</string>
+    <string name="button_safe">I\'M SAFE</string>
+    <string name="button_sos">SOS</string>
 
     <string name="permission_required_denied">Ulak needs Bluetooth, Nearby devices and (on older phones) Location permission to reach other phones. Please allow them in Settings.</string>
     <string name="permission_notifications_denied">Notifications are off. Communication Mode still works, but you will not see its status notification.</string>
     <string name="permission_open_settings">Open Settings</string>
 
-    <string name="last_message_title">Last message</string>
-    <string name="last_message_empty">No messages yet</string>
-    <string name="last_message_detail">Time: %1$s · ID: %2$s</string>
+    <string name="messages_title">Messages:</string>
+    <string name="messages_empty">No messages yet</string>
+    <string name="sender_you">you</string>
+
+    <string name="notification_channel_name">Communication Mode</string>
+    <string name="notification_relaying">Ulak is relaying messages</string>
 </resources>

@@ -20,7 +20,11 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     private val messageCenter = (application as UlakApplication).messageCenter
 
-    val lastMessage: StateFlow<Message?> = messageCenter.lastMessage
+    val deviceId: String = messageCenter.deviceId
+
+    val messages: StateFlow<List<Message>> = messageCenter.messages
+
+    val connectedPeers: StateFlow<Set<String>> = messageCenter.connectedPeers
 
     val isCommunicationOn: StateFlow<Boolean> = CommunicationService.isRunning
 
@@ -43,14 +47,10 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         _permissionNotice.value =
             if (PermissionHelper.notificationsAllowed(app)) null else PermissionNotice.NOTIFICATIONS_DENIED
 
-        startCommunication()
+        CommunicationService.start(app)
     }
 
     fun stopCommunication() {
         CommunicationService.stop(getApplication())
-    }
-
-    private fun startCommunication() {
-        CommunicationService.start(getApplication())
     }
 }

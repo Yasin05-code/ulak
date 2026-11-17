@@ -8,16 +8,15 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
@@ -47,9 +46,10 @@ import java.time.format.DateTimeFormatter
 
 @Composable
 fun HomeScreen(viewModel: HomeViewModel = viewModel()) {
-    val lastMessage by viewModel.lastMessage.collectAsState()
-    val permissionNotice by viewModel.permissionNotice.collectAsState()
+    val messages by viewModel.messages.collectAsState()
+    val peers by viewModel.connectedPeers.collectAsState()
     val isCommunicationOn by viewModel.isCommunicationOn.collectAsState()
+    val permissionNotice by viewModel.permissionNotice.collectAsState()
     val context = LocalContext.current
 
     // Opens the system permission dialog; Android skips it for permissions already granted.
@@ -58,11 +58,11 @@ fun HomeScreen(viewModel: HomeViewModel = viewModel()) {
     ) { viewModel.onPermissionResult() }
 
     HomeContent(
-        lastMessage = lastMessage,
-        permissionNotice = permissionNotice,
+        deviceId = viewModel.deviceId,
         isCommunicationOn = isCommunicationOn,
-        onSafeClick = viewModel::onSafeClick,
-        onSosClick = viewModel::onSosClick,
+        peerCount = peers.size,
+        messages = messages,
+        permissionNotice = permissionNotice,
         onCommunicationClick = {
             if (isCommunicationOn) {
                 viewModel.stopCommunication()
@@ -70,6 +70,8 @@ fun HomeScreen(viewModel: HomeViewModel = viewModel()) {
                 permissionLauncher.launch(PermissionHelper.permissionsToRequest())
             }
         },
+        onSafeClick = viewModel::onSafeClick,
+        onSosClick = viewModel::onSosClick,
         onOpenSettingsClick = { openAppSettings(context) }
     )
 }
@@ -83,12 +85,14 @@ private fun openAppSettings(context: Context) {
 /** Pure layout: gets data and callbacks as parameters, so it is easy to preview. */
 @Composable
 private fun HomeContent(
-    lastMessage: Message?,
-    permissionNotice: PermissionNotice?,
+    deviceId: String,
     isCommunicationOn: Boolean,
+    peerCount: Int,
+    messages: List<Message>,
+    permissionNotice: PermissionNotice?,
+    onCommunicationClick: () -> Unit,
     onSafeClick: () -> Unit,
     onSosClick: () -> Unit,
-    onCommunicationClick: () -> Unit,
     onOpenSettingsClick: () -> Unit
 ) {
     Scaffold { innerPadding ->
@@ -97,104 +101,79 @@ private fun HomeContent(
                 .fillMaxSize()
                 .padding(innerPadding)
                 .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            StatusCard(isCommunicationOn)
+            Text(
+                text = stringResource(R.string.title),
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold
+            )
 
-            if (permissionNotice != null) {
-                PermissionNoticeCard(permissionNotice, onOpenSettingsClick)
+            Text(
+                text = stringResource(
+                    if (isCommunicationOn) R.string.mode_active else R.string.mode_off
+                ),
+                style = MaterialTheme.typography.titleMedium
+            )
+            if (isCommunicationOn) {
+                Text(stringResource(R.string.nearby_phones, peerCount))
             }
-
-            // The two emergency buttons share all free space, so they stay large.
-            ActionButton(
-                text = stringResource(R.string.button_safe),
-                color = SafeGreen,
-                onClick = onSafeClick
-            )
-            ActionButton(
-                text = stringResource(R.string.button_sos),
-                color = SosRed,
-                onClick = onSosClick
-            )
 
             OutlinedButton(
                 onClick = onCommunicationClick,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(64.dp)
+                modifier = Modifier.fillMaxWidth()
             ) {
-                val label = if (isCommunicationOn) {
-                    R.string.button_stop_communication
-                } else {
-                    R.string.button_start_communication
-                }
-                Text(stringResource(label), fontSize = 18.sp)
+                Text(
+                    stringResource(
+                        if (isCommunicationOn) {
+                            R.string.button_stop_communication
+                        } else {
+                            R.string.button_start_communication
+                        }
+                    )
+                )
             }
 
-            LastMessageCard(lastMessage)
-        }
-    }
-}
-
-@Composable
-private fun StatusCard(isOn: Boolean) {
-    val colors = if (isOn) {
-        CardDefaults.cardColors(containerColor = SafeGreen, contentColor = Color.White)
-    } else {
-        CardDefaults.cardColors()
-    }
-    Card(modifier = Modifier.fillMaxWidth(), colors = colors) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = stringResource(R.string.status_title),
-                style = MaterialTheme.typography.labelLarge
-            )
-            Text(
-                text = stringResource(if (isOn) R.string.status_on else R.string.status_off),
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold
-            )
-            Text(
-                text = stringResource(if (isOn) R.string.status_on_detail else R.string.status_off_detail),
-                style = MaterialTheme.typography.bodyMedium
-            )
-        }
-    }
-}
-
-@Composable
-private fun PermissionNoticeCard(notice: PermissionNotice, onOpenSettingsClick: () -> Unit) {
-    val text = when (notice) {
-        PermissionNotice.REQUIRED_DENIED -> stringResource(R.string.permission_required_denied)
-        PermissionNotice.NOTIFICATIONS_DENIED -> stringResource(R.string.permission_notifications_denied)
-    }
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.errorContainer,
-            contentColor = MaterialTheme.colorScheme.onErrorContainer
-        )
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(text = text, style = MaterialTheme.typography.bodyMedium)
-            TextButton(onClick = onOpenSettingsClick) {
-                Text(stringResource(R.string.permission_open_settings))
+            if (permissionNotice != null) {
+                PermissionNoticeText(permissionNotice, onOpenSettingsClick)
             }
+
+            BigButton(stringResource(R.string.button_safe), SafeGreen, onSafeClick)
+            BigButton(stringResource(R.string.button_sos), SosRed, onSosClick)
+
+            Text(
+                text = stringResource(R.string.messages_title),
+                style = MaterialTheme.typography.titleMedium
+            )
+            MessageList(messages = messages, deviceId = deviceId)
         }
     }
 }
 
 @Composable
-private fun ColumnScope.ActionButton(text: String, color: Color, onClick: () -> Unit) {
+private fun BigButton(text: String, color: Color, onClick: () -> Unit) {
     Button(
         onClick = onClick,
         modifier = Modifier
             .fillMaxWidth()
-            .weight(1f),
-        shape = RoundedCornerShape(24.dp),
+            .height(96.dp),
         colors = ButtonDefaults.buttonColors(containerColor = color, contentColor = Color.White)
     ) {
-        Text(text = text, fontSize = 32.sp, fontWeight = FontWeight.Bold)
+        Text(text = text, fontSize = 28.sp, fontWeight = FontWeight.Bold)
+    }
+}
+
+@Composable
+private fun PermissionNoticeText(notice: PermissionNotice, onOpenSettingsClick: () -> Unit) {
+    val text = when (notice) {
+        PermissionNotice.REQUIRED_DENIED -> stringResource(R.string.permission_required_denied)
+        PermissionNotice.NOTIFICATIONS_DENIED -> stringResource(R.string.permission_notifications_denied)
+    }
+    Column {
+        Text(text = text, color = MaterialTheme.colorScheme.error)
+        TextButton(onClick = onOpenSettingsClick) {
+            Text(stringResource(R.string.permission_open_settings))
+        }
     }
 }
 
@@ -202,52 +181,44 @@ private val timeFormatter: DateTimeFormatter =
     DateTimeFormatter.ofPattern("HH:mm:ss").withZone(ZoneId.systemDefault())
 
 @Composable
-private fun LastMessageCard(message: Message?) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = stringResource(R.string.last_message_title),
-                style = MaterialTheme.typography.labelLarge
-            )
-            if (message == null) {
-                Text(
-                    text = stringResource(R.string.last_message_empty),
-                    style = MaterialTheme.typography.bodyLarge
-                )
-            } else {
-                val typeLabel = when (message.type) {
-                    MessageType.I_AM_SAFE -> stringResource(R.string.button_safe)
-                    MessageType.SOS -> stringResource(R.string.button_sos)
-                }
-                Text(
-                    text = typeLabel,
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = stringResource(
-                        R.string.last_message_detail,
-                        timeFormatter.format(message.createdAt),
-                        message.id.take(8)
-                    ),
-                    style = MaterialTheme.typography.bodyMedium
-                )
+private fun MessageList(messages: List<Message>, deviceId: String) {
+    if (messages.isEmpty()) {
+        Text(stringResource(R.string.messages_empty))
+        return
+    }
+    LazyColumn(modifier = Modifier.fillMaxWidth()) {
+        items(messages, key = { it.id }) { message ->
+            val type = when (message.type) {
+                MessageType.I_AM_SAFE -> stringResource(R.string.button_safe)
+                MessageType.SOS -> stringResource(R.string.button_sos)
             }
+            val sender = if (message.senderId == deviceId) {
+                stringResource(R.string.sender_you)
+            } else {
+                message.senderId.take(8)
+            }
+            Text(
+                text = "$type · ${timeFormatter.format(message.createdAt)} · $sender",
+                modifier = Modifier.padding(vertical = 8.dp)
+            )
+            HorizontalDivider()
         }
     }
 }
 
 @Preview(showBackground = true, heightDp = 800)
 @Composable
-private fun HomeScreenPreview() {
+private fun HomeContentPreview() {
     UlakTheme {
         HomeContent(
-            lastMessage = null,
+            deviceId = "preview",
+            isCommunicationOn = true,
+            peerCount = 2,
+            messages = emptyList(),
             permissionNotice = null,
-            isCommunicationOn = false,
+            onCommunicationClick = {},
             onSafeClick = {},
             onSosClick = {},
-            onCommunicationClick = {},
             onOpenSettingsClick = {}
         )
     }

@@ -16,6 +16,7 @@ import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
 import com.ulak.app.MainActivity
 import com.ulak.app.R
+import com.ulak.app.UlakApplication
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -30,7 +31,7 @@ import kotlinx.coroutines.launch
 /**
  * Communication Mode: a foreground service of type connectedDevice.
  * It only starts when the user taps Start Communication.
- * Nearby Connections will run inside it later; for now it only writes a log.
+ * While it runs, Nearby discovery is on and messages are relayed.
  */
 class CommunicationService : Service() {
 
@@ -54,6 +55,7 @@ class CommunicationService : Service() {
 
         if (!_isRunning.value) {
             _isRunning.value = true
+            messageCenter().startMesh()
             scope.launch { heartbeat() }
         }
 
@@ -63,16 +65,20 @@ class CommunicationService : Service() {
     }
 
     override fun onDestroy() {
+        messageCenter().stopMesh()
         scope.cancel()
         _isRunning.value = false
         Log.i(TAG, "Communication Mode stopped")
         super.onDestroy()
     }
 
+    private fun messageCenter() = (application as UlakApplication).messageCenter
+
     private suspend fun heartbeat() {
         var tick = 0
         while (scope.isActive) {
-            Log.i(TAG, "Communication Mode alive, tick ${tick++}")
+            val peers = messageCenter().connectedPeers.value.size
+            Log.i(TAG, "Communication Mode alive, tick ${tick++}, peers $peers")
             delay(HEARTBEAT_INTERVAL_MS)
         }
     }
