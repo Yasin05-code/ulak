@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import com.ulak.app.UlakApplication
 import com.ulak.app.permission.PermissionHelper
+import com.ulak.app.service.CommunicationService
 import com.ulak.mesh.model.Message
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -20,6 +21,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val messageCenter = (application as UlakApplication).messageCenter
 
     val lastMessage: StateFlow<Message?> = messageCenter.lastMessage
+
+    val isCommunicationOn: StateFlow<Boolean> = CommunicationService.isRunning
 
     private val _permissionNotice = MutableStateFlow<PermissionNotice?>(null)
     val permissionNotice: StateFlow<PermissionNotice?> = _permissionNotice.asStateFlow()
@@ -43,7 +46,11 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         startCommunication()
     }
 
+    fun stopCommunication() {
+        CommunicationService.stop(getApplication())
+    }
+
     private fun startCommunication() {
-        // Phase 4: start the foreground service here.
+        CommunicationService.start(getApplication())
     }
 }

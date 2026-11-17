@@ -49,6 +49,7 @@ import java.time.format.DateTimeFormatter
 fun HomeScreen(viewModel: HomeViewModel = viewModel()) {
     val lastMessage by viewModel.lastMessage.collectAsState()
     val permissionNotice by viewModel.permissionNotice.collectAsState()
+    val isCommunicationOn by viewModel.isCommunicationOn.collectAsState()
     val context = LocalContext.current
 
     // Opens the system permission dialog; Android skips it for permissions already granted.
@@ -59,10 +60,15 @@ fun HomeScreen(viewModel: HomeViewModel = viewModel()) {
     HomeContent(
         lastMessage = lastMessage,
         permissionNotice = permissionNotice,
+        isCommunicationOn = isCommunicationOn,
         onSafeClick = viewModel::onSafeClick,
         onSosClick = viewModel::onSosClick,
         onCommunicationClick = {
-            permissionLauncher.launch(PermissionHelper.permissionsToRequest())
+            if (isCommunicationOn) {
+                viewModel.stopCommunication()
+            } else {
+                permissionLauncher.launch(PermissionHelper.permissionsToRequest())
+            }
         },
         onOpenSettingsClick = { openAppSettings(context) }
     )
@@ -79,6 +85,7 @@ private fun openAppSettings(context: Context) {
 private fun HomeContent(
     lastMessage: Message?,
     permissionNotice: PermissionNotice?,
+    isCommunicationOn: Boolean,
     onSafeClick: () -> Unit,
     onSosClick: () -> Unit,
     onCommunicationClick: () -> Unit,
@@ -92,7 +99,7 @@ private fun HomeContent(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            StatusCard()
+            StatusCard(isCommunicationOn)
 
             if (permissionNotice != null) {
                 PermissionNoticeCard(permissionNotice, onOpenSettingsClick)
@@ -116,7 +123,12 @@ private fun HomeContent(
                     .fillMaxWidth()
                     .height(64.dp)
             ) {
-                Text(stringResource(R.string.button_start_communication), fontSize = 18.sp)
+                val label = if (isCommunicationOn) {
+                    R.string.button_stop_communication
+                } else {
+                    R.string.button_start_communication
+                }
+                Text(stringResource(label), fontSize = 18.sp)
             }
 
             LastMessageCard(lastMessage)
@@ -125,20 +137,25 @@ private fun HomeContent(
 }
 
 @Composable
-private fun StatusCard() {
-    Card(modifier = Modifier.fillMaxWidth()) {
+private fun StatusCard(isOn: Boolean) {
+    val colors = if (isOn) {
+        CardDefaults.cardColors(containerColor = SafeGreen, contentColor = Color.White)
+    } else {
+        CardDefaults.cardColors()
+    }
+    Card(modifier = Modifier.fillMaxWidth(), colors = colors) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
                 text = stringResource(R.string.status_title),
                 style = MaterialTheme.typography.labelLarge
             )
             Text(
-                text = stringResource(R.string.status_off),
+                text = stringResource(if (isOn) R.string.status_on else R.string.status_off),
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold
             )
             Text(
-                text = stringResource(R.string.status_off_detail),
+                text = stringResource(if (isOn) R.string.status_on_detail else R.string.status_off_detail),
                 style = MaterialTheme.typography.bodyMedium
             )
         }
@@ -227,6 +244,7 @@ private fun HomeScreenPreview() {
         HomeContent(
             lastMessage = null,
             permissionNotice = null,
+            isCommunicationOn = false,
             onSafeClick = {},
             onSosClick = {},
             onCommunicationClick = {},
